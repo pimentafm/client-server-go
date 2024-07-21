@@ -1,68 +1,99 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
+	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-type Exchange struct {
-	Code       string `json:"code"`
-	Codein     string `json:"codein"`
-	Name       string `json:"name"`
-	High       string `json:"high"`
-	Low        string `json:"low"`
-	VarBid     string `json:"varBid"`
-	PctChange  string `json:"pctChange"`
-	Bid        string `json:"bid"`
-	Ask        string `json:"ask"`
-	Timestamp  string `json:"timestamp"`
-	CreateDate string `json:"create_date"`
-}
-
 type ExchangeData struct {
-	USDBRL Exchange `json:"USDBRL"`
+	Bid string `json:"bid"`
 }
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/cotacao", CurrencyExchange)
+	mux.HandleFunc("/cotacao", ExchangeHandler)
 
 	http.ListenAndServe(":8080", mux)
 }
 
-func CurrencyExchange(w http.ResponseWriter, r *http.Request) {
-	req, err := http.Get("https://economia.awesomeapi.com.br/json/last/USD-BRL")
+func ExchangeHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	exchange, err := fetchExchange(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
+		http.Error(w, "Failed to fetch exchange", http.StatusInternalServerError)
+		return
 	}
 
-	defer req.Body.Close()
+	ctxDB, cancelDB := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancelDB()
 
-	res, err := io.ReadAll(req.Body)
+	err = saveExchangeOnDatabase(ctxDB, exchange.Bid)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read response: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	var data ExchangeData
-	err = json.Unmarshal(res, &data)
-
-	fmt.Println(data)
-
-	file, err := os.Create("cotacao.txt")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create file: %v\n", err)
-	}
-
-	defer file.Close()
-
-	_, err = file.WriteString(fmt.Sprintf("Cotação do Dólar: %s\n", data.USDBRL.Bid))
-
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(data.USDBRL.Bid)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to encode JSON: %v\n", err)
-	}
+	// err = saveExchangeOnFile(ctxDB, exchange.Bid)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 }
+
+func fetchExchange(ctx context.Context) (ExchangeData, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://economia.awesomeapi.com.br/json/last/USD-BRL", nil)
+	if err != nil {
+		return ExchangeData{}, fmt.Errorf("Failed to fetch exchange: %w", err)
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return ExchangeData{}, fmt.Errorf("Failed to fetch exchange: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	var result map[string]map[string]string
+	err = json.NewDecoder(res.Body).Decode(&result)
+	if err != nil {
+		return ExchangeData{}, fmt.Errorf("Failed to decode exchange: %w", err)
+	}
+	exchange := ExchangeData{Bid: result["USDBRL"]["bid"]}
+
+	return exchange, nil
+}
+
+func saveExchangeOnDatabase(ctx context.Context, bid string) error {
+	db, err := sql.Open("sqlite3", "./cotacoes.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS cotacao (
+		"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,		
+		"bid" TEXT
+	  );`
+
+	_, err = db.ExecContext(ctx, createTableSQL)
+	if err != nil {
+		return err
+	}
+
+	insertSQL := `INSERT INTO cotacao (bid) VALUES (?)`
+	_, err = db.ExecContext(ctx, insertSQL, bid)
+	return err
+}
+
+// func saveExchangeOnFile() {
+// 	// Save exchange on file
+// }
