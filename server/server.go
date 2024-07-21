@@ -18,11 +18,33 @@ type ExchangeData struct {
 	gorm.Model
 }
 
+var db *gorm.DB
+
 func main() {
+	var err error
+	db, err = initDatabase()
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/cotacao", ExchangeHandler)
 
 	http.ListenAndServe(":8080", mux)
+}
+
+func initDatabase() (*gorm.DB, error) {
+	db, err := gorm.Open(sqlite.Open("cotacao.db"), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.AutoMigrate(&ExchangeData{})
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 func ExchangeHandler(w http.ResponseWriter, r *http.Request) {
@@ -73,11 +95,6 @@ func fetchExchange(ctx context.Context) (ExchangeData, error) {
 }
 
 func saveExchangeOnDatabase(ctx context.Context, bid string) error {
-	db, err := gorm.Open(sqlite.Open("cotacao.db"), &gorm.Config{})
-	if err != nil {
-		return err
-	}
-
 	db.WithContext(ctx).AutoMigrate(&ExchangeData{})
 
 	exchange := ExchangeData{Bid: bid}
@@ -88,7 +105,3 @@ func saveExchangeOnDatabase(ctx context.Context, bid string) error {
 
 	return nil
 }
-
-// func saveExchangeOnFile() {
-// 	// Save exchange on file
-// }
