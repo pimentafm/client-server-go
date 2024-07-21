@@ -31,7 +31,7 @@ func ExchangeHandler(w http.ResponseWriter, r *http.Request) {
 
 	exchange, err := fetchExchange(ctx)
 	if err != nil {
-		http.Error(w, "Failed to fetch exchange", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusRequestTimeout)
 		return
 	}
 
@@ -43,6 +43,9 @@ func ExchangeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(exchange)
 }
 
 func fetchExchange(ctx context.Context) (ExchangeData, error) {
