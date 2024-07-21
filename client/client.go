@@ -15,7 +15,7 @@ type Exchange struct {
 }
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 
 	exchange, err := fetchExchange(ctx)
