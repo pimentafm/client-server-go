@@ -21,5 +21,19 @@ Este projeto consiste em dois sistemas desenvolvidos em Go: `client.go` e `serve
 ### 1. Clonar o Repositório
 
 ```bash
-git clone <link-do-repositorio>
-cd <nome-do-repositorio>
+git clone https://github.com/pimentafm/client-server-go.git
+cd client-server-go
+```
+### 2. Executar o server
+
+```bash
+cd server
+go run server.go
+```
+### 3. Executar o client
+
+```bash
+cd client
+go run client.go
+```
+
