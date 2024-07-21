@@ -13,8 +13,17 @@ import (
 )
 
 type ExchangeData struct {
-	ID  uint   `gorm:"primaryKey"`
-	Bid string `json:"bid"`
+	Code       string `json:"code"`
+	Codein     string `json:"codein"`
+	Name       string `json:"name"`
+	High       string `json:"high"`
+	Low        string `json:"low"`
+	VarBid     string `json:"varBid"`
+	PctChange  string `json:"pctChange"`
+	Bid        string `json:"bid"`
+	Ask        string `json:"ask"`
+	Timestamp  string `json:"timestamp"`
+	CreateDate string `json:"create_date"`
 	gorm.Model
 }
 
@@ -60,7 +69,7 @@ func ExchangeHandler(w http.ResponseWriter, r *http.Request) {
 	ctxDB, cancelDB := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancelDB()
 
-	err = saveExchangeOnDatabase(ctxDB, exchange.Bid)
+	err = saveExchangeOnDatabase(ctxDB, exchange)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -89,18 +98,30 @@ func fetchExchange(ctx context.Context) (ExchangeData, error) {
 	if err != nil {
 		return ExchangeData{}, fmt.Errorf("failed to decode exchange: %w", err)
 	}
-	exchange := ExchangeData{Bid: result["USDBRL"]["bid"]}
+
+	exchange := ExchangeData{
+		Code:       result["USDBRL"]["code"],
+		Codein:     result["USDBRL"]["codein"],
+		Name:       result["USDBRL"]["name"],
+		High:       result["USDBRL"]["high"],
+		Low:        result["USDBRL"]["low"],
+		VarBid:     result["USDBRL"]["varBid"],
+		PctChange:  result["USDBRL"]["pctChange"],
+		Bid:        result["USDBRL"]["bid"],
+		Ask:        result["USDBRL"]["ask"],
+		Timestamp:  result["USDBRL"]["timestamp"],
+		CreateDate: result["USDBRL"]["create_date"],
+	}
 
 	return exchange, nil
 }
 
-func saveExchangeOnDatabase(ctx context.Context, bid string) error {
+func saveExchangeOnDatabase(ctx context.Context, exchange ExchangeData) error {
 	db.WithContext(ctx).AutoMigrate(&ExchangeData{})
 
-	exchange := ExchangeData{Bid: bid}
 	result := db.WithContext(ctx).Create(&exchange)
 	if result.Error != nil {
-		return result.Error
+		return fmt.Errorf("failed to save exchange on database: %w", result.Error)
 	}
 
 	return nil

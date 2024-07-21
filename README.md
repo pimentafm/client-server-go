@@ -37,3 +37,24 @@ cd client
 go run client.go
 ```
 
+### Formato dos dados provenientes da api
+```json
+{
+  "code": "USD",
+  "codein": "BRL",
+  "name": "Dólar Americano/Real Brasileiro",
+  "high": "5.6089",
+  "low": "5.5219",
+  "varBid": "0.0507",
+  "pctChange": "0.91",
+  "bid": "5.5962",
+  "ask": "5.5972",
+  "timestamp": "1721422794",
+  "create_date": "2024-07-19 17:59:54",
+  "ID": 0,
+  "CreatedAt": "0001-01-01T00:00:00Z",
+  "UpdatedAt": "0001-01-01T00:00:00Z",
+  "DeletedAt": null
+}
+```
+
